@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ランダムグループ作成・照会ツール</title>
+    <title>ランダムグループ作成・タイムアタックツール (GAS連携版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -71,7 +71,7 @@
 
         textarea {
             width: 100%;
-            height: 160px;
+            height: 140px;
             padding: 14px;
             box-sizing: border-box;
             border: 1px solid var(--border);
@@ -82,7 +82,7 @@
             transition: all 0.2s;
         }
 
-        textarea:focus {
+        textarea:focus, .input-text:focus {
             border-color: var(--primary);
             background-color: #fff;
             outline: none;
@@ -97,6 +97,8 @@
             border-radius: 8px;
             font-size: 1rem;
             margin-bottom: 15px;
+            background-color: #f9fafb;
+            transition: all 0.2s;
         }
 
         .select-box {
@@ -283,8 +285,31 @@
         .group-number-display {
             font-size: 4rem;
             font-weight: 900;
-            color: var(--success);
+            color: var(--primary);
             margin: 20px 0;
+            background: #e0e7ff;
+            padding: 15px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .timer-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--danger);
+            margin-bottom: 15px;
+        }
+        .success-time-box {
+            font-size: 2.5rem;
+            color: var(--success);
+            font-weight: 800;
+            margin: 20px 0;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         #hidden-theater-stage {
@@ -347,9 +372,16 @@
 </head>
 <body>
 
-<!-- 教員用画面 -->
 <div class="container" id="teacher-view">
     <h1>ランダムグループ作成ツール (教員用)</h1>
+
+    <div class="card-section">
+        <div class="section-title">⚙️ 0. GAS連携設定 (任意)</div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 10px;">
+            Googleスプレッドシートにタイムを自動記録したい場合は、GASのウェブアプリURLを貼り付けてください。
+        </p>
+        <input type="text" id="gas-url" class="input-text" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:0px;">
+    </div>
 
     <div class="card-section">
         <div class="section-title">👥 1. 生徒名簿の登録</div>
@@ -393,9 +425,8 @@
     <div class="group-output-container" id="result-container"></div>
 </div>
 
-<!-- 生徒用画面 -->
 <div class="container" id="student-view" style="display: none;">
-    <h1>グループ番号 照会システム</h1>
+    <h1>グループ番号 照会＆タイムアタック</h1>
     
     <div class="card-section" id="student-search-section">
         <div class="section-title">🔍 自分の名前を検索</div>
@@ -411,15 +442,35 @@
             <p style="font-size: 0.9rem; color: var(--text-muted);">本人確認のため、あなたの<strong>学籍番号</strong>を入力してください。</p>
             <input type="password" id="student-password" class="input-text" placeholder="学籍番号を入力">
             
-            <button class="btn btn-success btn-block" style="font-size: 1.1rem; margin-top: 10px;" onclick="verifyAndShowGroup()">グループ番号を確認する</button>
+            <button class="btn btn-success btn-block" style="font-size: 1.1rem; margin-top: 10px;" onclick="verifyAndStartGame()">グループを確認してゲーム開始！</button>
         </div>
     </div>
 
+    <div id="student-game-section" class="card-section" style="display: none;">
+        <div class="section-title" style="color: var(--primary);">🎯 あなたのグループ番号</div>
+        <center><div class="group-number-display">あなたのグループ: <span id="my-group-id">-</span></div></center>
+        
+        <div class="timer-display">⏱ 経過時間: <span id="game-timer">0.0</span> 秒</div>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+        
+        <div class="section-title">👥 同じグループのメンバーを当てろ！</div>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">
+            教室を見渡して、あなたと同じグループ番号だと思うメンバーを<strong id="required-member-count">?</strong>名選んでください。<br>
+            <span style="color: var(--danger);">※自分自身を選択に含める必要はありません。</span>
+        </p>
+        
+        <div id="member-select-inputs"></div>
+        
+        <button class="btn btn-success btn-block" style="font-size: 1.2rem; margin-top: 15px;" id="submit-btn" onclick="checkAnswers()">メンバーを確定して送信！</button>
+    </div>
+
     <div id="student-result-zone" class="student-result-box" style="display: none;">
-        <div class="section-title" style="justify-content: center; color: var(--success);">🎯 照会結果</div>
-        <div id="student-display-name" style="font-size: 1.2rem; font-weight: bold;"></div>
-        <div class="group-number-display">あなたのグループ番号は <span id="my-group-id">-</span> です</div>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">※他の人に見られないように注意しましょう！</p>
+        <div class="section-title" style="justify-content: center; color: var(--success);">🎉 正解！ミッションクリア！</div>
+        <div id="student-display-name" style="font-size: 1.4rem; font-weight: bold;"></div>
+        <div class="success-time-box">⏱ 記録: <span id="final-time">0.0</span> 秒</div>
+        <p id="gas-status" style="font-size: 0.9rem; color: var(--text-muted); font-weight: bold;"></p>
+        <p style="font-size: 0.95rem; font-weight: bold; color: var(--text-main);">スプレッドシートへの記録が送信されました。確認が終わるまでこの画面を閉じないでください。</p>
     </div>
 </div>
 
@@ -439,15 +490,31 @@
     let currentMode = 'size';
     let lastGeneratedGroups = []; 
     let activeStudentData = []; 
+    let globalGasUrl = ""; // 生徒側に引き渡されるGASのURL
+    
+    let startTime;
+    let timerInterval;
+    let loginStudent = null; 
+    let correctAnswers = []; 
 
     window.onload = function() {
+        // 保存されたGAS URLの復元
+        const savedGasUrl = localStorage.getItem('saved_gas_url');
+        if (savedGasUrl) {
+            document.getElementById('gas-url').value = savedGasUrl;
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
+        const embeddedGasUrl = urlParams.get('gurl'); // URLからGASのURLを取得
 
         if (encodedData) {
             document.getElementById('teacher-view').style.display = 'none';
             document.getElementById('student-view').style.display = 'block';
             decodeStudentData(encodedData);
+            if (embeddedGasUrl) {
+                globalGasUrl = decodeURIComponent(embeddedGasUrl);
+            }
         } else {
             const savedNames = localStorage.getItem('saved_student_complex_data');
             if (savedNames) {
@@ -457,7 +524,6 @@
         }
     };
 
-    // 教員側：入力データのパース（インデックス順を変更）
     function processRegisteredNames() {
         const text = document.getElementById('raw-names').value;
         const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line !== "");
@@ -469,11 +535,13 @@
 
         localStorage.setItem('saved_student_complex_data', text);
         
+        // GASのURLをローカルストレージに保存
+        const gasUrlInput = document.getElementById('gas-url').value.trim();
+        localStorage.setItem('saved_gas_url', gasUrlInput);
+
         students = [];
         lines.forEach((line, idx) => {
             const tokens = line.split(/\t|,/).map(t => t.trim());
-            
-            // 変更後のマッピング (学籍番号, クラス, 番号, 氏名, よみがな)
             const id = tokens[0] || "";
             const cls = tokens[1] || "";
             const num = tokens[2] || "";
@@ -643,7 +711,13 @@
             .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); 
 
         const baseUrl = window.location.origin + window.location.pathname;
-        const finalUrl = `${baseUrl}?data=${base64Str}`;
+        const gasUrlInput = document.getElementById('gas-url').value.trim();
+        
+        // パラメータにGASのURLも埋め込む
+        let finalUrl = `${baseUrl}?data=${base64Str}`;
+        if (gasUrlInput) {
+            finalUrl += `&gurl=${encodeURIComponent(gasUrlInput)}`;
+        }
 
         document.getElementById('share-url-display').innerText = finalUrl;
     }
@@ -653,23 +727,22 @@
         navigator.clipboard.writeText(urlText).then(() => {
             alert("生徒用照会URLをクリップボードにコピーしました！");
         }).catch(() => {
-            alert("コピーに失敗しました。文字列を選択して直接コピーしてください。");
+            alert("コピーに失敗しました。");
         });
     }
+
+    // --- 生徒側ロジック ---
 
     function decodeStudentData(encodedStr) {
         try {
             let base64 = encodedStr.replace(/-/g, '+').replace(/_/g, '/');
             while (base64.length % 4) { base64 += '='; }
-            
             const binaryStr = atob(base64);
             const bytes = new Uint8Array(binaryStr.length).map((_, i) => binaryStr.charCodeAt(i));
             const jsonStr = new TextDecoder().decode(bytes);
-            
             activeStudentData = JSON.parse(jsonStr);
         } catch (e) {
-            alert("URLのデータが正しく読み込めませんでした。教員が生成した正しいURLにアクセスしているか確認してください。");
-            console.error(e);
+            alert("URLのデータが正しく読み込めませんでした。");
         }
     }
 
@@ -687,11 +760,10 @@
 
         const dropdownZone = document.getElementById('student-select-zone');
         const dropdown = document.getElementById('student-dropdown');
-        
         dropdown.innerHTML = '';
 
         if (matches.length === 0) {
-            alert("該当する生徒が見つかりませんでした。ひらがな/漢字を確かめて再度検索してください。");
+            alert("該当する生徒が見つかりませんでした。");
             dropdownZone.style.display = 'none';
             return;
         }
@@ -702,11 +774,10 @@
             opt.innerText = `${s.n} (${s.y})`;
             dropdown.appendChild(opt);
         });
-
         dropdownZone.style.display = 'block';
     }
 
-    function verifyAndShowGroup() {
+    function verifyAndStartGame() {
         const selectedName = document.getElementById('student-dropdown').value;
         const inputPassword = document.getElementById('student-password').value.trim();
 
@@ -715,16 +786,144 @@
             return;
         }
 
-        const targetStudent = activeStudentData.find(s => s.n === selectedName);
+        loginStudent = activeStudentData.find(s => s.n === selectedName);
 
-        if (targetStudent && targetStudent.i === inputPassword) {
+        if (loginStudent && loginStudent.i === inputPassword) {
             document.getElementById('student-search-section').style.display = 'none';
-            document.getElementById('student-display-name').innerText = `${targetStudent.n} さんの照会結果`;
-            document.getElementById('my-group-id').innerText = targetStudent.g;
-            document.getElementById('student-result-zone').style.display = 'block';
+            document.getElementById('my-group-id').innerText = loginStudent.g;
+            document.getElementById('student-game-section').style.display = 'block';
+
+            correctAnswers = activeStudentData
+                .filter(s => s.g === loginStudent.g && s.n !== loginStudent.n)
+                .map(s => s.n);
+
+            document.getElementById('required-member-count').innerText = correctAnswers.length;
+            buildMemberSelectForm(correctAnswers.length);
+
+            startTime = performance.now();
+            timerInterval = setInterval(updateTimer, 100);
         } else {
-            alert("学籍番号が一致しません。もう一度正しく入力してください。");
+            alert("学籍番号が一致しません。");
         }
+    }
+
+    function buildMemberSelectForm(count) {
+        const container = document.getElementById('member-select-inputs');
+        container.innerHTML = '';
+        const sortedAllStudents = [...activeStudentData].sort((a, b) => a.y.localeCompare(b.y, 'ja'));
+
+        for (let i = 0; i < count; i++) {
+            const label = document.createElement('div');
+            label.style.margin = "10px 0 5px 0";
+            label.style.fontWeight = "bold";
+            label.innerText = `メンバー ${i + 1}:`;
+
+            const select = document.createElement('select');
+            select.className = 'select-box class-member-dropdown';
+            
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = "";
+            defaultOpt.innerText = "-- 生徒を選択 --";
+            select.appendChild(defaultOpt);
+
+            sortedAllStudents.forEach(s => {
+                if (s.n !== loginStudent.n) {
+                    const opt = document.createElement('option');
+                    opt.value = s.n;
+                    opt.innerText = `${s.n} (${s.y})`;
+                    select.appendChild(opt);
+                }
+            });
+
+            container.appendChild(label);
+            container.appendChild(select);
+        }
+    }
+
+    function updateTimer() {
+        const currentTime = performance.now();
+        const elapsed = ((currentTime - startTime) / 1000).toFixed(1);
+        document.getElementById('game-timer').innerText = elapsed;
+    }
+
+    function checkAnswers() {
+        const dropdowns = document.querySelectorAll('.class-member-dropdown');
+        const selectedAnswers = [];
+
+        for (let select of dropdowns) {
+            const val = select.value;
+            if (!val) {
+                alert("すべてのメンバーを選択してください。");
+                return;
+            }
+            if (selectedAnswers.includes(val)) {
+                alert("同じ生徒が複数回選択されています。");
+                return;
+            }
+            selectedAnswers.push(val);
+        }
+
+        const isAllCorrect = correctAnswers.every(name => selectedAnswers.includes(name));
+
+        if (isAllCorrect) {
+            clearInterval(timerInterval);
+            const endTime = performance.now();
+            const finalTime = ((endTime - startTime) / 1000).toFixed(2);
+
+            // 連打・多重送信防止
+            document.getElementById('submit-btn').disabled = true;
+
+            document.getElementById('student-game-section').style.display = 'none';
+            document.getElementById('student-display-name').innerText = `${loginStudent.n} さん（グループ ${loginStudent.g}）`;
+            document.getElementById('final-time').innerText = finalTime;
+            document.getElementById('student-result-zone').style.display = 'block';
+
+            // 【追加】GASへの送信処理呼び出し
+            sendDataToGas(finalTime);
+
+        } else {
+            alert("メンバーが違います！教室をよく見渡して、もう一度考えてみましょう。");
+        }
+    }
+
+    // 【追加】GASへの非同期データ送信関数
+    function sendDataToGas(finalTime) {
+        const statusLabel = document.getElementById('gas-status');
+        
+        if (!globalGasUrl) {
+            statusLabel.innerText = "⚠️ スプレッドシート連携URLが設定されていないため、タイムは保存されませんでした。";
+            statusLabel.style.color = "var(--danger)";
+            return;
+        }
+
+        statusLabel.innerText = "⏳ スプレッドシートに記録を送信中...";
+        statusLabel.style.color = "var(--text-muted)";
+
+        const payload = {
+            id: loginStudent.i,
+            name: loginStudent.n,
+            group: loginStudent.g,
+            time: parseFloat(finalTime)
+        };
+
+        // fetch APIを使った非同期POST送信 (CORS対策として mode: 'no-cors' を指定)
+        fetch(globalGasUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(() => {
+            statusLabel.innerText = "✅ スプレッドシートへの送信完了！";
+            statusLabel.style.color = "var(--success)";
+        })
+        .catch((error) => {
+            console.error("Error:", error);
+            statusLabel.innerText = "❌ 送信エラーが発生しました。教員に直接申告してください。";
+            statusLabel.style.color = "var(--danger)";
+        });
     }
 
     function exportToImage() {
