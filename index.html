@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ランダムグループ作成・照会ツール</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --success-hover: #059669;
+            --danger: #ef4444;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 30px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .card-section {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            padding: 14px;
+            box-sizing: border-box;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            background-color: #f9fafb;
+            transition: all 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            background-color: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .input-text {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+
+        .select-box {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            background-color: #fff;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: var(--success-hover); }
+        .btn-block { width: 100%; }
+
+        .student-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .student-checkbox {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .student-checkbox input {
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--danger);
+        }
+
+        .student-checkbox.absent {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: var(--danger);
+            text-decoration: line-through;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .config-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+
+        .number-input {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .shuffle-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+
+        .shuffle-box {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: #67e8f9;
+            text-shadow: 0 0 20px rgba(103, 232, 249, 0.5);
+            min-height: 4.5rem;
+        }
+
+        .result-controls {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .group-output-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .group-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .group-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .member-list { list-style: none; padding: 0; margin: 0; }
+        .member-list li { padding: 6px 0; font-size: 1rem; border-bottom: 1px dashed #e2e8f0; }
+        .member-list li:last-child { border-bottom: none; }
+
+        .share-url-box {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            word-break: break-all;
+        }
+
+        /* 生徒画面用特有デザイン */
+        .student-result-box {
+            text-align: center;
+            padding: 30px;
+            background: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .group-number-display {
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--success);
+            margin: 20px 0;
+        }
+
+        #hidden-theater-stage {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 1920px;
+            min-height: 1080px;
+            background: #0f172a;
+            background-image: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: white;
+            padding: 60px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .theater-header {
+            text-align: center;
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 50px;
+            color: #38bdf8;
+            letter-spacing: 2px;
+        }
+
+        .theater-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            align-content: flex-start;
+            width: 100%;
+        }
+
+        .theater-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            width: 280px;
+            box-sizing: border-box;
+        }
+
+        .theater-group-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #f43f5e;
+            border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .theater-member-list { list-style: none; padding: 0; margin: 0; text-align: center;}
+        .theater-member-list li { font-size: 1.6rem; padding: 8px 0; font-weight: 600; color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="teacher-view">
+    <h1>ランダムグループ作成ツール (教員用)</h1>
+
+    <div class="card-section">
+        <div class="section-title">👥 1. 生徒名簿の登録</div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 10px;">
+            Excel等からコピーして貼り付けられます。各列はタブ、またはカンマで区切ってください。<br>
+            <strong>入力順：クラス, 番号, 氏名, よみがな, 学籍番号</strong>
+        </p>
+        <textarea id="raw-names" placeholder="（例）Excelからそのままコピー＆ペースト可能です&#13;1A	1	山田 太郎	やまだ たろう	2026001&#13;1A	2	佐藤 花子	さとう はなこ	2026002"></textarea>
+        <button class="btn btn-block" style="margin-top: 12px;" onclick="processRegisteredNames()">名簿を確定して欠席者確認へ</button>
+    </div>
+
+    <div id="section-attendance" class="card-section" style="display: none;">
+        <div class="section-title">✅ 2. 欠席者にチェックを入れて下さい</div>
+        <div class="student-grid" id="student-grid"></div>
+    </div>
+
+    <div id="section-config" class="card-section" style="display: none;">
+        <div class="section-title">⚙️ 3. 条件指定</div>
+        <div class="tab-container">
+            <div id="tab-size" class="tab active" onclick="switchMode('size')">1班あたりの人数で指定</div>
+            <div id="tab-count" class="tab" onclick="switchMode('count')">総グループ数で指定</div>
+        </div>
+        
+        <div class="config-input-wrap">
+            <span id="config-label">1班あたりの人数:</span>
+            <input type="number" id="config-number" class="number-input" value="4" min="1">
+            <span id="config-unit">人組</span>
+        </div>
+        
+        <button class="btn btn-success btn-block" style="margin-top: 20px; font-size: 1.1rem;" onclick="startShuffleAnimation()">シャッフルしてグループを編成する</button>
+    </div>
+
+    <div class="result-controls" id="result-controls">
+        <div id="share-url-zone" style="max-width: 60%; font-size: 0.9rem;">
+            <strong>🔗 生徒用照会URLが生成されました！</strong>
+            <div class="share-url-box" id="share-url-display"></div>
+            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem; margin-top: 5px; background-color: var(--text-muted);" onclick="copyShareUrl()">URLをコピー</button>
+        </div>
+        <button class="btn" style="background-color: #8b5cf6; align-self: flex-end;" onclick="exportToImage()">スクリーン用横向き画像を出力</button>
+    </div>
+    <div class="group-output-container" id="result-container"></div>
+</div>
+
+<div class="container" id="student-view" style="display: none;">
+    <h1>グループ番号 照会システム</h1>
+    
+    <div class="card-section" id="student-search-section">
+        <div class="section-title">🔍 自分の名前を検索</div>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">氏名、または「よみがな」を入力して検索ボタンを押してください。</p>
+        <input type="text" id="student-keyword" class="input-text" placeholder="例：山田 または たろう">
+        <button class="btn btn-block" onclick="searchStudent()">候補を検索する</button>
+        
+        <div id="student-select-zone" style="display: none; margin-top: 20px;">
+            <div class="section-title">👤 あなたの名前を選択してください</div>
+            <select id="student-dropdown" class="select-box"></select>
+            
+            <div class="section-title">🔑 本人確認パスワード</div>
+            <p style="font-size: 0.9rem; color: var(--text-muted);">本人確認のため、あなたの<strong>学籍番号</strong>を入力してください。</p>
+            <input type="password" id="student-password" class="input-text" placeholder="学籍番号を入力">
+            
+            <button class="btn btn-success btn-block" style="font-size: 1.1rem; margin-top: 10px;" onclick="verifyAndShowGroup()">グループ番号を確認する</button>
+        </div>
+    </div>
+
+    <div id="student-result-zone" class="student-result-box" style="display: none;">
+        <div class="section-title" style="justify-content: center; color: var(--success);">🎯 照会結果</div>
+        <div id="student-display-name" style="font-size: 1.2rem; font-weight: bold;"></div>
+        <div class="group-number-display">あなたのグループ番号は <span id="my-group-id">-</span> です</div>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">※他の人に見られないように注意しましょう！</p>
+    </div>
+</div>
+
+<div class="shuffle-overlay" id="shuffle-overlay">
+    <div style="font-size: 1.5rem; margin-bottom: 10px; color: #94a3b8;">シャッフル！</div>
+    <div class="shuffle-box" id="shuffle-box">---</div>
+    <div style="font-size: 1.2rem; color: #e2e8f0;">グループを編成します(^_^)/</div>
+</div>
+
+<div id="hidden-theater-stage">
+    <div class="theater-header" id="theater-title">👥 グループ分け結果</div>
+    <div class="theater-grid" id="theater-grid"></div>
+</div>
+
+<script>
+    let students = []; // 教員が解析した全生徒データ
+    let currentMode = 'size';
+    let lastGeneratedGroups = []; 
+    let activeStudentData = []; // 生徒側画面で復元されたデータ
+
+    window.onload = function() {
+        // URLパラメータのチェック
+        const urlParams = new URLSearchParams(window.location.search);
+        const encodedData = urlParams.get('data');
+
+        if (encodedData) {
+            // 生徒用モードの起動
+            document.getElementById('teacher-view').style.display = 'none';
+            document.getElementById('student-view').style.display = 'block';
+            decodeStudentData(encodedData);
+        } else {
+            // 教員用モード（既存の挙動）
+            const savedNames = localStorage.getItem('saved_student_complex_data');
+            if (savedNames) {
+                document.getElementById('raw-names').value = savedNames;
+                processRegisteredNames();
+            }
+        }
+    };
+
+    // 教員側：入力データのパース
+    function processRegisteredNames() {
+        const text = document.getElementById('raw-names').value;
+        // 改行で分割
+        const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line !== "");
+
+        if (lines.length === 0) {
+            alert("生徒のデータを入力してください。");
+            return;
+        }
+
+        localStorage.setItem('saved_student_complex_data', text);
+        
+        students = [];
+        lines.forEach((line, idx) => {
+            // タブまたはカンマで分割
+            const tokens = line.split(/\t|,/).map(t => t.trim());
+            
+            // データのマッピング (クラス, 番号, 氏名, よみがな, 学籍番号)
+            // 不足しているフィールドがあれば空文字で補填
+            const cls = tokens[0] || "";
+            const num = tokens[1] || "";
+            const name = tokens[2] || `未定義生徒${idx+1}`;
+            const yomi = tokens[3] || "";
+            const id = tokens[4] || "";
+
+            students.push({
+                cls: cls,
+                num: num,
+                name: name,
+                yomi: yomi,
+                id: id,
+                isAbsent: false
+            });
+        });
+
+        renderAttendanceGrid();
+        document.getElementById('section-attendance').style.display = 'block';
+        document.getElementById('section-config').style.display = 'block';
+        document.getElementById('result-container').innerHTML = '';
+        document.getElementById('result-controls').style.display = 'none';
+    }
+
+    function renderAttendanceGrid() {
+        const grid = document.getElementById('student-grid');
+        grid.innerHTML = '';
+
+        students.forEach((student, index) => {
+            const div = document.createElement('div');
+            div.className = `student-checkbox ${student.isAbsent ? 'absent' : ''}`;
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = student.isAbsent;
+            checkbox.onclick = (e) => {
+                e.stopPropagation();
+                toggleStudentAbsence(index);
+            };
+
+            div.onclick = () => toggleStudentAbsence(index);
+            div.appendChild(checkbox);
+            
+            // 表示ラベルの構築 (クラス 番号 氏名)
+            const labelText = `${student.cls ? student.cls + ' ' : ''}${student.num ? student.num + '番 ' : ''}${student.name}`;
+            div.appendChild(document.createTextNode(labelText));
+            grid.appendChild(div);
+        });
+    }
+
+    function toggleStudentAbsence(index) {
+        students[index].isAbsent = !students[index].isAbsent;
+        renderAttendanceGrid();
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('tab-size').className = `tab ${mode === 'size' ? 'active' : ''}`;
+        document.getElementById('tab-count').className = `tab ${mode === 'count' ? 'active' : ''}`;
+        
+        if (mode === 'size') {
+            document.getElementById('config-label').innerText = "1班あたりの人数:";
+            document.getElementById('config-unit').innerText = "人組";
+            document.getElementById('config-number').value = "4";
+        } else {
+            document.getElementById('config-label').innerText = "生成する総グループ数:";
+            document.getElementById('config-unit').innerText = "グループ";
+            document.getElementById('config-number').value = "6";
+        }
+    }
+
+    function startShuffleAnimation() {
+        // 出席しているオブジェクトそのものを抽出
+        let presentStudents = students.filter(s => !s.isAbsent);
+        if (presentStudents.length === 0) {
+            alert("出席者が誰も選択されていません！");
+            return;
+        }
+
+        const overlay = document.getElementById('shuffle-overlay');
+        const box = document.getElementById('shuffle-box');
+        overlay.style.display = 'flex';
+
+        let counter = 0;
+        const interval = setInterval(() => {
+            const randomIndex = Math.floor(Math.random() * presentStudents.length);
+            box.innerText = presentStudents[randomIndex].name;
+            counter++;
+            if (counter > 25) {
+                clearInterval(interval);
+                overlay.style.display = 'none';
+                executeGroupLogic(presentStudents);
+            }
+        }, 50);
+    }
+
+    function executeGroupLogic(presentStudents) {
+        const targetNumber = parseInt(document.getElementById('config-number').value);
+        if (isNaN(targetNumber) || targetNumber <= 0) {
+            alert("有効な数値を入力してください。");
+            return;
+        }
+
+        // 既存同様に配列をランダムにシャッフル
+        for (let i = presentStudents.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [presentStudents[i], presentStudents[j]] = [presentStudents[j], presentStudents[i]];
+        }
+
+        let groups = [];
+
+        if (currentMode === 'size') {
+            while (presentStudents.length > 0) {
+                groups.push(presentStudents.splice(0, targetNumber));
+            }
+            if (groups.length > 1 && groups[groups.length - 1].length === 1) {
+                const lone = groups.pop()[0];
+                groups[groups.length - 1].push(lone);
+            }
+        } else {
+            for (let i = 0; i < targetNumber; i++) {
+                groups.push([]);
+            }
+            presentStudents.forEach((student, index) => {
+                groups[index % targetNumber].push(student);
+            });
+            groups = groups.filter(g => g.length > 0);
+        }
+
+        lastGeneratedGroups = groups; 
+        renderNormalResults(groups);
+        generateShareUrl(groups);
+    }
+
+    function renderNormalResults(groups) {
+        const container = document.getElementById('result-container');
+        container.innerHTML = '';
+        document.getElementById('result-controls').style.display = 'flex';
+
+        groups.forEach((group, index) => {
+            const card = document.createElement('div');
+            card.className = 'group-card';
+            // グループに1番からナンバリング
+            card.innerHTML = `<div class="group-name">グループ ${index + 1} (${group.length}人)</div>`;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'member-list';
+            group.forEach(m => {
+                ul.innerHTML += `<li>${m.cls ? m.cls + ' ' : ''}${m.num ? m.num + '番 ' : ''}${m.name}</li>`;
+            });
+            card.appendChild(ul);
+            container.appendChild(card);
+        });
+    }
+
+    // 生徒用URLの生成 (Base64URLエンコード)
+    function generateShareUrl(groups) {
+        const shareData = [];
+        groups.forEach((group, groupIdx) => {
+            group.forEach(student => {
+                shareData.push({
+                    n: student.name,
+                    y: student.yomi,
+                    i: student.id,
+                    g: groupIdx + 1 // グループ番号は1から開始
+                });
+            });
+        });
+
+        // データをコンパクトなJSON文字列にし、UTF-8対応のBase64にエンコード
+        const jsonStr = JSON.stringify(shareData);
+        const utf8Bytes = new TextEncoder().encode(jsonStr);
+        const base64Str = btoa(String.fromCharCode(...utf8Bytes))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); // URL Safe化
+
+        const baseUrl = window.location.origin + window.location.pathname;
+        const finalUrl = `${baseUrl}?data=${base64Str}`;
+
+        document.getElementById('share-url-display').innerText = finalUrl;
+    }
+
+    function copyShareUrl() {
+        const urlText = document.getElementById('share-url-display').innerText;
+        navigator.clipboard.writeText(urlText).then(() => {
+            alert("生徒用照会URLをクリップボードにコピーしました！");
+        }).catch(() => {
+            alert("コピーに失敗しました。文字列を選択して直接コピーしてください。");
+        });
+    }
+
+    // 生徒側：URLパラメータからデータをデコード
+    function decodeStudentData(encodedStr) {
+        try {
+            // URL Safe Base64 を通常のBase64に戻す
+            let base64 = encodedStr.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) { base64 += '='; }
+            
+            const binaryStr = atob(base64);
+            const bytes = new Uint8Array(binaryStr.length).map((_, i) => binaryStr.charCodeAt(i));
+            const jsonStr = new TextDecoder().decode(bytes);
+            
+            activeStudentData = JSON.parse(jsonStr);
+        } catch (e) {
+            alert("URLのデータが正しく読み込めませんでした。教員が生成した正しいURLにアクセスしているか確認してください。");
+            console.error(e);
+        }
+    }
+
+    // 生徒側：名前・よみがなによる検索処理
+    function searchStudent() {
+        const keyword = document.getElementById('student-keyword').value.trim().toLowerCase();
+        if (!keyword) {
+            alert("名前またはよみがなを入力してください。");
+            return;
+        }
+
+        // 部分一致で検索
+        const matches = activeStudentData.filter(s => 
+            s.n.toLowerCase().includes(keyword) || 
+            s.y.toLowerCase().includes(keyword)
+        );
+
+        const dropdownZone = document.getElementById('student-select-zone');
+        const dropdown = document.getElementById('student-dropdown');
+        
+        dropdown.innerHTML = '';
+
+        if (matches.length === 0) {
+            alert("該当する生徒が見つかりませんでした。ひらがな/漢字を確かめて再度検索してください。");
+            dropdownZone.style.display = 'none';
+            return;
+        }
+
+        // ドロップダウンに候補を追加
+        matches.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.n; // 一意キーとして氏名を使用（同姓同名がある場合は要拡張ですが通常運用はこれでカバー可能）
+            opt.innerText = `${s.n} (${s.y})`;
+            dropdown.appendChild(opt);
+        });
+
+        dropdownZone.style.display = 'block';
+    }
+
+    // 生徒側：学籍番号によるパスワード照合とグループ番号の開示
+    function verifyAndShowGroup() {
+        const selectedName = document.getElementById('student-dropdown').value;
+        const inputPassword = document.getElementById('student-password').value.trim();
+
+        if (!inputPassword) {
+            alert("本人確認用のパスワード（学籍番号）を入力してください。");
+            return;
+        }
+
+        // 選択された生徒オブジェクトを取得
+        const targetStudent = activeStudentData.find(s => s.n === selectedName);
+
+        if (targetStudent && targetStudent.i === inputPassword) {
+            // パスワード一致：グループ番号のみを表示
+            document.getElementById('student-search-section').style.display = 'none';
+            document.getElementById('student-display-name').innerText = `${targetStudent.n} さんの照会結果`;
+            document.getElementById('my-group-id').innerText = targetStudent.g;
+            document.getElementById('student-result-zone').style.display = 'block';
+        } else {
+            alert("学籍番号が一致しません。もう一度正しく入力してください。");
+        }
+    }
+
+    function exportToImage() {
+        if (lastGeneratedGroups.length === 0) return;
+
+        const gridStage = document.getElementById('theater-grid');
+        gridStage.innerHTML = '';
+
+        lastGeneratedGroups.forEach((group, index) => {
+            const card = document.createElement('div');
+            card.className = 'theater-card';
+            card.innerHTML = `<div class="theater-group-name">第 ${index + 1} 班</div>`;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'theater-member-list';
+            group.forEach(m => {
+                ul.innerHTML += `<li>${m.name}</li>`;
+            });
+            card.appendChild(ul);
+            gridStage.appendChild(card);
+        });
+
+        const target = document.getElementById('hidden-theater-stage');
+        
+        html2canvas(target, {
+            width: 1920,
+            height: target.scrollHeight, 
+            scale: 2,
+            windowHeight: target.scrollHeight
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `グループ分け結果_${new Date().toLocaleDateString()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+</script>
+
+</body>
+</html>
