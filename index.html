@@ -272,7 +272,6 @@
             word-break: break-all;
         }
 
-        /* 生徒画面用特有デザイン */
         .student-result-box {
             text-align: center;
             padding: 30px;
@@ -348,6 +347,7 @@
 </head>
 <body>
 
+<!-- 教員用画面 -->
 <div class="container" id="teacher-view">
     <h1>ランダムグループ作成ツール (教員用)</h1>
 
@@ -355,9 +355,9 @@
         <div class="section-title">👥 1. 生徒名簿の登録</div>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 10px;">
             Excel等からコピーして貼り付けられます。各列はタブ、またはカンマで区切ってください。<br>
-            <strong>入力順：クラス, 番号, 氏名, よみがな, 学籍番号</strong>
+            <strong>入力順：学籍番号, クラス, 番号, 氏名, よみがな</strong>
         </p>
-        <textarea id="raw-names" placeholder="（例）Excelからそのままコピー＆ペースト可能です&#13;1A	1	山田 太郎	やまだ たろう	2026001&#13;1A	2	佐藤 花子	さとう はなこ	2026002"></textarea>
+        <textarea id="raw-names" placeholder="（例）Excelからそのままコピー＆ペースト可能です&#13;2026001	1A	1	山田 太郎	やまだ たろう&#13;2026002	1A	2	佐藤 花子	さとう はなこ"></textarea>
         <button class="btn btn-block" style="margin-top: 12px;" onclick="processRegisteredNames()">名簿を確定して欠席者確認へ</button>
     </div>
 
@@ -393,6 +393,7 @@
     <div class="group-output-container" id="result-container"></div>
 </div>
 
+<!-- 生徒用画面 -->
 <div class="container" id="student-view" style="display: none;">
     <h1>グループ番号 照会システム</h1>
     
@@ -434,23 +435,20 @@
 </div>
 
 <script>
-    let students = []; // 教員が解析した全生徒データ
+    let students = []; 
     let currentMode = 'size';
     let lastGeneratedGroups = []; 
-    let activeStudentData = []; // 生徒側画面で復元されたデータ
+    let activeStudentData = []; 
 
     window.onload = function() {
-        // URLパラメータのチェック
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
 
         if (encodedData) {
-            // 生徒用モードの起動
             document.getElementById('teacher-view').style.display = 'none';
             document.getElementById('student-view').style.display = 'block';
             decodeStudentData(encodedData);
         } else {
-            // 教員用モード（既存の挙動）
             const savedNames = localStorage.getItem('saved_student_complex_data');
             if (savedNames) {
                 document.getElementById('raw-names').value = savedNames;
@@ -459,10 +457,9 @@
         }
     };
 
-    // 教員側：入力データのパース
+    // 教員側：入力データのパース（インデックス順を変更）
     function processRegisteredNames() {
         const text = document.getElementById('raw-names').value;
-        // 改行で分割
         const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line !== "");
 
         if (lines.length === 0) {
@@ -474,23 +471,21 @@
         
         students = [];
         lines.forEach((line, idx) => {
-            // タブまたはカンマで分割
             const tokens = line.split(/\t|,/).map(t => t.trim());
             
-            // データのマッピング (クラス, 番号, 氏名, よみがな, 学籍番号)
-            // 不足しているフィールドがあれば空文字で補填
-            const cls = tokens[0] || "";
-            const num = tokens[1] || "";
-            const name = tokens[2] || `未定義生徒${idx+1}`;
-            const yomi = tokens[3] || "";
-            const id = tokens[4] || "";
+            // 変更後のマッピング (学籍番号, クラス, 番号, 氏名, よみがな)
+            const id = tokens[0] || "";
+            const cls = tokens[1] || "";
+            const num = tokens[2] || "";
+            const name = tokens[3] || `未定義生徒${idx+1}`;
+            const yomi = tokens[4] || "";
 
             students.push({
+                id: id,
                 cls: cls,
                 num: num,
                 name: name,
                 yomi: yomi,
-                id: id,
                 isAbsent: false
             });
         });
@@ -521,7 +516,6 @@
             div.onclick = () => toggleStudentAbsence(index);
             div.appendChild(checkbox);
             
-            // 表示ラベルの構築 (クラス 番号 氏名)
             const labelText = `${student.cls ? student.cls + ' ' : ''}${student.num ? student.num + '番 ' : ''}${student.name}`;
             div.appendChild(document.createTextNode(labelText));
             grid.appendChild(div);
@@ -550,7 +544,6 @@
     }
 
     function startShuffleAnimation() {
-        // 出席しているオブジェクトそのものを抽出
         let presentStudents = students.filter(s => !s.isAbsent);
         if (presentStudents.length === 0) {
             alert("出席者が誰も選択されていません！");
@@ -581,7 +574,6 @@
             return;
         }
 
-        // 既存同様に配列をランダムにシャッフル
         for (let i = presentStudents.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [presentStudents[i], presentStudents[j]] = [presentStudents[j], presentStudents[i]];
@@ -620,7 +612,6 @@
         groups.forEach((group, index) => {
             const card = document.createElement('div');
             card.className = 'group-card';
-            // グループに1番からナンバリング
             card.innerHTML = `<div class="group-name">グループ ${index + 1} (${group.length}人)</div>`;
             
             const ul = document.createElement('ul');
@@ -633,7 +624,6 @@
         });
     }
 
-    // 生徒用URLの生成 (Base64URLエンコード)
     function generateShareUrl(groups) {
         const shareData = [];
         groups.forEach((group, groupIdx) => {
@@ -642,16 +632,15 @@
                     n: student.name,
                     y: student.yomi,
                     i: student.id,
-                    g: groupIdx + 1 // グループ番号は1から開始
+                    g: groupIdx + 1 
                 });
             });
         });
 
-        // データをコンパクトなJSON文字列にし、UTF-8対応のBase64にエンコード
         const jsonStr = JSON.stringify(shareData);
         const utf8Bytes = new TextEncoder().encode(jsonStr);
         const base64Str = btoa(String.fromCharCode(...utf8Bytes))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); // URL Safe化
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); 
 
         const baseUrl = window.location.origin + window.location.pathname;
         const finalUrl = `${baseUrl}?data=${base64Str}`;
@@ -668,10 +657,8 @@
         });
     }
 
-    // 生徒側：URLパラメータからデータをデコード
     function decodeStudentData(encodedStr) {
         try {
-            // URL Safe Base64 を通常のBase64に戻す
             let base64 = encodedStr.replace(/-/g, '+').replace(/_/g, '/');
             while (base64.length % 4) { base64 += '='; }
             
@@ -686,7 +673,6 @@
         }
     }
 
-    // 生徒側：名前・よみがなによる検索処理
     function searchStudent() {
         const keyword = document.getElementById('student-keyword').value.trim().toLowerCase();
         if (!keyword) {
@@ -694,7 +680,6 @@
             return;
         }
 
-        // 部分一致で検索
         const matches = activeStudentData.filter(s => 
             s.n.toLowerCase().includes(keyword) || 
             s.y.toLowerCase().includes(keyword)
@@ -711,10 +696,9 @@
             return;
         }
 
-        // ドロップダウンに候補を追加
         matches.forEach(s => {
             const opt = document.createElement('option');
-            opt.value = s.n; // 一意キーとして氏名を使用（同姓同名がある場合は要拡張ですが通常運用はこれでカバー可能）
+            opt.value = s.n; 
             opt.innerText = `${s.n} (${s.y})`;
             dropdown.appendChild(opt);
         });
@@ -722,7 +706,6 @@
         dropdownZone.style.display = 'block';
     }
 
-    // 生徒側：学籍番号によるパスワード照合とグループ番号の開示
     function verifyAndShowGroup() {
         const selectedName = document.getElementById('student-dropdown').value;
         const inputPassword = document.getElementById('student-password').value.trim();
@@ -732,11 +715,9 @@
             return;
         }
 
-        // 選択された生徒オブジェクトを取得
         const targetStudent = activeStudentData.find(s => s.n === selectedName);
 
         if (targetStudent && targetStudent.i === inputPassword) {
-            // パスワード一致：グループ番号のみを表示
             document.getElementById('student-search-section').style.display = 'none';
             document.getElementById('student-display-name').innerText = `${targetStudent.n} さんの照会結果`;
             document.getElementById('my-group-id').innerText = targetStudent.g;
